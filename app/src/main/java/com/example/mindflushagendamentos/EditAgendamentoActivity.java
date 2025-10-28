@@ -6,6 +6,7 @@ import androidx.appcompat.widget.Toolbar;
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.database.Cursor;
 import android.os.Bundle;
 import android.view.MenuItem;
@@ -94,7 +95,11 @@ public class EditAgendamentoActivity extends AppCompatActivity {
                 .setMessage("Tem certeza de que deseja excluir este agendamento?\n\n" + detalhes)
                 .setPositiveButton("Sim, Excluir", (dialog, which) -> {
                     bancoHelper.excluirAgendamento(idParaExcluir);
+                    bancoHelper.reavaliarConflitosDoDia(dataOriginal);
                     Toast.makeText(this, "Agendamento excluído!", Toast.LENGTH_SHORT).show();
+
+                    Intent intent = new Intent();
+                    setResult(RESULT_OK, intent);
                     finish();
                 })
                 .setNegativeButton("Não", null)
@@ -138,24 +143,33 @@ public class EditAgendamentoActivity extends AppCompatActivity {
     }
 
     private void mostrarPopupConflitoPrincipal(ArrayList<Agendamento> conflitos) {
-        new AlertDialog.Builder(this)
-                .setTitle("Conflito de Horário")
-                .setMessage("O novo horário entra em conflito com " + conflitos.size() + " agendamento(s) existente(s). O que deseja fazer?")
-                .setPositiveButton("Sobrescrever...", (dialog, which) -> mostrarPopupSelecaoSobrescrever(conflitos))
-                .setNeutralButton("Permitir Conflito", (dialog, which) -> {
-                    for (Agendamento ag : conflitos) {
-                        bancoHelper.setConflitoStatus(ag.getId(), true);
-                    }
+        final CharSequence[] items = { "Sobrescrever...", "Reagendar Conflito(s)...", "Permitir Conflito", "Cancelar" };
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Conflito de Horário");
+        builder.setItems(items, (dialog, item) -> {
+            switch(item) {
+                case 0:
+                    mostrarPopupSelecaoSobrescrever(conflitos);
+                    break;
+                case 1:
+                    mostrarPopupSelecaoReagendar(conflitos);
+                    break;
+                case 2:
                     realizarAtualizacao(true);
                     Toast.makeText(this, "Agendamento em conflito salvo!", Toast.LENGTH_SHORT).show();
-                })
-                .setNegativeButton("Cancelar", null)
-                .show();
+                    break;
+                case 3:
+                    dialog.dismiss();
+                    break;
+            }
+        });
+        builder.show();
     }
 
     private void mostrarPopupSelecaoSobrescrever(ArrayList<Agendamento> conflitos) {
         String[] itensDisplay = new String[conflitos.size()];
-        ArrayList<Long> idsParaExcluir = new ArrayList<>();
+        final ArrayList<Long> idsParaExcluir = new ArrayList<>();
 
         for (int i = 0; i < conflitos.size(); i++) {
             Agendamento ag = conflitos.get(i);
@@ -177,26 +191,35 @@ public class EditAgendamentoActivity extends AppCompatActivity {
                         Toast.makeText(this, "Nenhum agendamento selecionado para sobrescrever.", Toast.LENGTH_SHORT).show();
                         return;
                     }
-
                     for (long id : idsParaExcluir) {
                         bancoHelper.excluirAgendamento(id);
                     }
-
-                    String data = edtData.getText().toString();
-                    String inicio = edtHorarioInicio.getText().toString();
-                    String termino = edtHorarioTermino.getText().toString();
-
-                    ArrayList<Agendamento> conflitosRestantes = bancoHelper.getConflitos(data, inicio, termino, agendamentoId);
-                    boolean aindaEmConflito = !conflitosRestantes.isEmpty();
-
-                    if(aindaEmConflito) {
-                        for (Agendamento ag : conflitosRestantes) {
-                            bancoHelper.setConflitoStatus(ag.getId(), true);
-                        }
-                    }
-
-                    realizarAtualizacao(aindaEmConflito);
+                    realizarAtualizacao(false);
                     Toast.makeText(this, idsParaExcluir.size() + " agendamento(s) sobrescrito(s)!", Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("Cancelar", null)
+                .show();
+    }
+
+    private void mostrarPopupSelecaoReagendar(ArrayList<Agendamento> conflitos) {
+        String[] itensDisplay = new String[conflitos.size()];
+        for (int i = 0; i < conflitos.size(); i++) {
+            Agendamento ag = conflitos.get(i);
+            itensDisplay[i] = ag.getHorarioInicio() + " - " + ag.getHorarioTermino() + " - " + ag.getNomePaciente();
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle("Selecione qual conflito reagendar")
+                .setItems(itensDisplay, (dialog, which) -> {
+                    Agendamento agendamentoParaReagendar = conflitos.get(which);
+                    Intent intent = new Intent(EditAgendamentoActivity.this, EditAgendamentoActivity.class);
+                    intent.putExtra("AGENDAMENTO_ID", agendamentoParaReagendar.getId());
+                    startActivity(intent);
+                    Toast.makeText(this, "Após reagendar o conflito, tente atualizar seu agendamento novamente.", Toast.LENGTH_LONG).show();
+
+                    Intent resultIntent = new Intent();
+                    setResult(RESULT_CANCELED, resultIntent); // Indica que o fluxo foi interrompido para reagendamento
+                    finish();
                 })
                 .setNegativeButton("Cancelar", null)
                 .show();
@@ -210,7 +233,14 @@ public class EditAgendamentoActivity extends AppCompatActivity {
 
         int resultado = bancoHelper.atualizarAgendamento(agendamentoId, nome, data, inicio, termino, isInConflict);
         if (resultado > 0) {
+            bancoHelper.reavaliarConflitosDoDia(dataOriginal);
+            if (!dataOriginal.equals(data)) {
+                bancoHelper.reavaliarConflitosDoDia(data);
+            }
             Toast.makeText(this, "Agendamento atualizado!", Toast.LENGTH_SHORT).show();
+
+            Intent intent = new Intent();
+            setResult(RESULT_OK, intent);
             finish();
         } else {
             Toast.makeText(this, "Erro ao atualizar!", Toast.LENGTH_SHORT).show();
@@ -241,10 +271,14 @@ public class EditAgendamentoActivity extends AppCompatActivity {
             new AlertDialog.Builder(this)
                     .setTitle("Descartar Alterações?")
                     .setMessage("Você tem alterações não salvas. Deseja mesmo sair?")
-                    .setPositiveButton("Sim, Descartar", (dialog, which) -> finish())
+                    .setPositiveButton("Sim, Descartar", (dialog, which) -> {
+                        setResult(RESULT_CANCELED);
+                        finish();
+                    })
                     .setNegativeButton("Não, Ficar", null)
                     .show();
         } else {
+            setResult(RESULT_CANCELED);
             finish();
         }
     }

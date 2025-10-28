@@ -29,36 +29,63 @@
             android:textSize="24sp"
             android:textStyle="bold" />
 
-        <EditText
-            android:id="@+id/edtNomePacienteEdit"
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Nome do Paciente"
-            android:inputType="textPersonName" />
+            android:hint="Nome do Paciente">
 
-        <EditText
-            android:id="@+id/edtDataEdit"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Data (DD/MM/AAAA)"
-            android:focusable="false"
-            android:inputType="date" />
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/edtNomePacienteEdit"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textPersonName" />
+        </com.google.android.material.textfield.TextInputLayout>
 
-        <EditText
-            android:id="@+id/edtHorarioInicioEdit"
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Horário de Início"
-            android:focusable="false"
-            android:inputType="time" />
+            android:layout_marginTop="8dp"
+            android:hint="Data (DD/MM/AAAA)">
 
-        <EditText
-            android:id="@+id/edtHorarioTerminoEdit"
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/edtDataEdit"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:focusable="false"
+                android:inputType="date" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Horário de Término"
-            android:focusable="false"
-            android:inputType="time" />
+            android:layout_marginTop="8dp"
+            android:hint="Horário de Início">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/edtHorarioInicioEdit"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:focusable="false"
+                android:inputType="time" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="Horário de Término">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/edtHorarioTerminoEdit"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:focusable="false"
+                android:inputType="time" />
+        </com.google.android.material.textfield.TextInputLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
