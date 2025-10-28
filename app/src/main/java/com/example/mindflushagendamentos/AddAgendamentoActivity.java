@@ -5,7 +5,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.MenuItem;
@@ -21,6 +20,9 @@ public class AddAgendamentoActivity extends AppCompatActivity {
     EditText edtNomePaciente, edtData, edtHorarioInicio, edtHorarioTermino;
     Button btnSalvar;
     BancoHelper bancoHelper;
+
+    // Código para identificar a chamada de reagendamento
+    private static final int REAGENDAR_REQUEST_CODE = 1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -65,45 +67,56 @@ public class AddAgendamentoActivity extends AppCompatActivity {
             return;
         }
 
+        // -1L significa que estamos criando um novo, então não há ID para excluir da verificação.
         ArrayList<Agendamento> conflitos = bancoHelper.getConflitos(data, inicio, termino, -1L);
 
         if (!conflitos.isEmpty()) {
             mostrarPopupConflitoPrincipal(conflitos);
         } else {
             bancoHelper.inserirAgendamento(nome, data, inicio, termino, false);
+            bancoHelper.reavaliarConflitosDoDia(data);
             Toast.makeText(this, "Agendamento salvo!", Toast.LENGTH_SHORT).show();
+            setResult(RESULT_OK); // Define o resultado como sucesso
             finish();
         }
     }
 
     private void mostrarPopupConflitoPrincipal(ArrayList<Agendamento> conflitos) {
-        new AlertDialog.Builder(this)
-                .setTitle("Conflito de Horário")
-                .setMessage("Já existe(m) " + conflitos.size() + " agendamento(s) neste intervalo. O que você deseja fazer?")
-                .setPositiveButton("Sobrescrever...", (dialog, which) -> {
+        final CharSequence[] items = { "Sobrescrever...", "Reagendar Conflito(s)...", "Permitir Conflito", "Cancelar" };
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Conflito de Horário");
+        builder.setItems(items, (dialog, item) -> {
+            switch (item) {
+                case 0: // Sobrescrever...
                     mostrarPopupSelecaoSobrescrever(conflitos);
-                })
-                .setNeutralButton("Permitir Conflito", (dialog, which) -> {
+                    break;
+                case 1: // Reagendar Conflito(s)...
+                    mostrarPopupSelecaoReagendar(conflitos);
+                    break;
+                case 2: // Permitir Conflito
                     String nome = edtNomePaciente.getText().toString();
                     String data = edtData.getText().toString();
                     String inicio = edtHorarioInicio.getText().toString();
                     String termino = edtHorarioTermino.getText().toString();
 
-                    for (Agendamento ag : conflitos) {
-                        bancoHelper.setConflitoStatus(ag.getId(), true);
-                    }
-                    bancoHelper.inserirAgendamento(nome, data, inicio, termino, true);
+                    bancoHelper.inserirAgendamento(nome, data, inicio, termino, true); // Insere o novo como conflitante
+                    bancoHelper.reavaliarConflitosDoDia(data); // Reavalia todos do dia
                     Toast.makeText(this, "Agendamento em conflito salvo!", Toast.LENGTH_SHORT).show();
+                    setResult(RESULT_OK);
                     finish();
-                })
-                .setNegativeButton("Cancelar", null)
-                .show();
+                    break;
+                case 3: // Cancelar
+                    dialog.dismiss();
+                    break;
+            }
+        });
+        builder.show();
     }
 
     private void mostrarPopupSelecaoSobrescrever(ArrayList<Agendamento> conflitos) {
         String[] itensDisplay = new String[conflitos.size()];
-        boolean[] itensSelecionados = new boolean[conflitos.size()];
-        ArrayList<Long> idsParaExcluir = new ArrayList<>();
+        final ArrayList<Long> idsParaExcluir = new ArrayList<>();
 
         for (int i = 0; i < conflitos.size(); i++) {
             Agendamento ag = conflitos.get(i);
@@ -112,7 +125,7 @@ public class AddAgendamentoActivity extends AppCompatActivity {
 
         new AlertDialog.Builder(this)
                 .setTitle("Selecione qual(is) sobrescrever")
-                .setMultiChoiceItems(itensDisplay, itensSelecionados, (dialog, which, isChecked) -> {
+                .setMultiChoiceItems(itensDisplay, null, (dialog, which, isChecked) -> {
                     long idSelecionado = conflitos.get(which).getId();
                     if (isChecked) {
                         idsParaExcluir.add(idSelecionado);
@@ -126,30 +139,55 @@ public class AddAgendamentoActivity extends AppCompatActivity {
                         return;
                     }
 
-                    for (long id : idsParaExcluir) {
-                        bancoHelper.excluirAgendamento(id);
-                    }
-
                     String nome = edtNomePaciente.getText().toString();
                     String data = edtData.getText().toString();
                     String inicio = edtHorarioInicio.getText().toString();
                     String termino = edtHorarioTermino.getText().toString();
 
-                    ArrayList<Agendamento> conflitosRestantes = bancoHelper.getConflitos(data, inicio, termino, -1L);
-                    boolean aindaEmConflito = !conflitosRestantes.isEmpty();
-
-                    if (aindaEmConflito) {
-                        for (Agendamento ag : conflitosRestantes) {
-                            bancoHelper.setConflitoStatus(ag.getId(), true);
-                        }
+                    for (long id : idsParaExcluir) {
+                        bancoHelper.excluirAgendamento(id);
                     }
 
-                    bancoHelper.inserirAgendamento(nome, data, inicio, termino, aindaEmConflito);
+                    bancoHelper.inserirAgendamento(nome, data, inicio, termino, false); // Insere o novo
+                    bancoHelper.reavaliarConflitosDoDia(data); // Reavalia todos para corrigir "conflitos fantasmas"
+
                     Toast.makeText(this, idsParaExcluir.size() + " agendamento(s) sobrescrito(s)!", Toast.LENGTH_SHORT).show();
+                    setResult(RESULT_OK);
                     finish();
                 })
                 .setNegativeButton("Cancelar", null)
                 .show();
+    }
+
+    private void mostrarPopupSelecaoReagendar(ArrayList<Agendamento> conflitos) {
+        String[] itensDisplay = new String[conflitos.size()];
+        for (int i = 0; i < conflitos.size(); i++) {
+            Agendamento ag = conflitos.get(i);
+            itensDisplay[i] = ag.getHorarioInicio() + " - " + ag.getHorarioTermino() + " - " + ag.getNomePaciente();
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle("Selecione qual conflito reagendar")
+                .setItems(itensDisplay, (dialog, which) -> {
+                    Agendamento agendamentoParaReagendar = conflitos.get(which);
+                    Intent intent = new Intent(AddAgendamentoActivity.this, EditAgendamentoActivity.class);
+                    intent.putExtra("AGENDAMENTO_ID", agendamentoParaReagendar.getId());
+                    // Inicia a atividade de edição esperando por um resultado
+                    startActivityForResult(intent, REAGENDAR_REQUEST_CODE);
+                })
+                .setNegativeButton("Cancelar", null)
+                .show();
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == REAGENDAR_REQUEST_CODE && resultCode == RESULT_OK) {
+            Toast.makeText(this, "Conflito resolvido. Tentando salvar seu agendamento novamente...", Toast.LENGTH_LONG).show();
+            // Tenta salvar o agendamento original novamente.
+            salvarAgendamento();
+        }
     }
 
     private void mostrarSeletorDeData() {

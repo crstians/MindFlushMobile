@@ -87,11 +87,9 @@ public class BancoHelper extends SQLiteOpenHelper {
         ContentValues values = new ContentValues();
         values.put(COLUMN_IS_IN_CONFLICT, isInConflict ? 1 : 0);
         db.update(TABLE_NAME, values, COLUMN_ID + " = ?", new String[]{String.valueOf(id)});
-        db.close();
+        // Deixamos o db aberto se este método for chamado dentro de um loop
     }
 
-    // MUDANÇA: O antigo 'verificarConflito' foi substituído por 'getConflitos'
-    // Este novo método retorna uma LISTA de todos os agendamentos conflitantes.
     public ArrayList<Agendamento> getConflitos(String data, String inicio, String termino, long idParaExcluir) {
         ArrayList<Agendamento> conflitos = new ArrayList<>();
         SQLiteDatabase db = this.getReadableDatabase();
@@ -116,5 +114,47 @@ public class BancoHelper extends SQLiteOpenHelper {
             cursor.close();
         }
         return conflitos;
+    }
+
+    // NOVO MÉTODO: Reavalia todos os agendamentos de um dia e atualiza seu status de conflito.
+    public void reavaliarConflitosDoDia(String data) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ArrayList<Agendamento> agendamentosDoDia = new ArrayList<>();
+
+        // 1. Pega todos os agendamentos do dia
+        Cursor cursor = listarAgendamentosPorData(data);
+        if (cursor != null && cursor.moveToFirst()) {
+            do {
+                long id = cursor.getLong(0);
+                String nome = cursor.getString(1);
+                String dataAg = cursor.getString(2);
+                String inicioAg = cursor.getString(3);
+                String terminoAg = cursor.getString(4);
+                boolean isInConflict = cursor.getInt(5) == 1;
+                agendamentosDoDia.add(new Agendamento(id, nome, dataAg, inicioAg, terminoAg, isInConflict));
+            } while (cursor.moveToNext());
+            cursor.close();
+        }
+
+        // 2. Para cada agendamento, verifica se ele tem conflito com qualquer outro no mesmo dia
+        for (Agendamento agAtual : agendamentosDoDia) {
+            boolean encontrouConflito = false;
+            for (Agendamento agOutro : agendamentosDoDia) {
+                if (agAtual.getId() == agOutro.getId()) {
+                    continue; // Não comparar um agendamento com ele mesmo
+                }
+                // Lógica de conflito: (StartA < EndB) and (EndA > StartB)
+                if (agAtual.getHorarioInicio().compareTo(agOutro.getHorarioTermino()) < 0 &&
+                        agAtual.getHorarioTermino().compareTo(agOutro.getHorarioInicio()) > 0) {
+                    encontrouConflito = true;
+                    break; // Se encontrou um conflito, não precisa verificar os outros
+                }
+            }
+            // 3. Atualiza o status de conflito no banco de dados
+            ContentValues values = new ContentValues();
+            values.put(COLUMN_IS_IN_CONFLICT, encontrouConflito ? 1 : 0);
+            db.update(TABLE_NAME, values, COLUMN_ID + " = ?", new String[]{String.valueOf(agAtual.getId())});
+        }
+        db.close();
     }
 }

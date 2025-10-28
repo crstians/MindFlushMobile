@@ -7,8 +7,6 @@ import androidx.appcompat.widget.Toolbar;
 import android.content.Intent;
 import android.database.Cursor;
 import android.os.Bundle;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CalendarView;
@@ -17,6 +15,8 @@ import android.widget.ListView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -34,7 +34,8 @@ public class CalendarActivity extends AppCompatActivity {
     // Componentes da UI
     CalendarView calendarView;
     ListView listViewHorarios;
-    Button btnAddAgendamento, btnViewMes, btnViewSemana, btnViewDia;
+    FloatingActionButton btnAddAgendamento;
+    Button btnViewMes, btnViewSemana, btnViewDia;
     RelativeLayout navigationControls;
     ImageButton btnAnterior, btnProximo;
     TextView tvDataNavegacao;
@@ -50,6 +51,9 @@ public class CalendarActivity extends AppCompatActivity {
 
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayShowTitleEnabled(false);
+        }
 
         bancoHelper = new BancoHelper(this);
         calendarView = findViewById(R.id.calendarView);
@@ -254,6 +258,7 @@ public class CalendarActivity extends AppCompatActivity {
                 .setPositiveButton("Sim, Excluir", (dialog, which) -> {
                     int resultado = bancoHelper.excluirAgendamento(idParaExcluir);
                     if (resultado > 0) {
+                        bancoHelper.reavaliarConflitosDoDia(data);
                         Toast.makeText(this, "Agendamento excluído!", Toast.LENGTH_SHORT).show();
                         atualizarVisibilidadeEControles();
                     } else {
@@ -268,21 +273,5 @@ public class CalendarActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         atualizarVisibilidadeEControles();
-    }
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.calendar_menu, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        int id = item.getItemId();
-        if (id == R.id.action_novo_agendamento) {
-            abrirTelaDeAdicionar();
-            return true;
-        }
-        return super.onOptionsItemSelected(item);
     }
 }

@@ -21,41 +21,50 @@ public class AgendamentoAdapter extends ArrayAdapter<Agendamento> {
     @NonNull
     @Override
     public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
-        // Pega o objeto Agendamento para esta posição na lista
-        Agendamento agendamento = getItem(position);
+        // ViewHolder é um padrão de otimização para listas
+        ViewHolder holder;
 
-        // Verifica se uma view existente está sendo reutilizada, senão, infla uma nova
+        // Se a view não existe, cria uma nova e configura o holder
         if (convertView == null) {
             convertView = LayoutInflater.from(getContext()).inflate(R.layout.list_item_agendamento, parent, false);
+            holder = new ViewHolder();
+            holder.tvHorarioInicio = convertView.findViewById(R.id.tvHorarioInicio);
+            holder.tvHorarioTermino = convertView.findViewById(R.id.tvHorarioTermino);
+            holder.tvNomePaciente = convertView.findViewById(R.id.tvNomePaciente);
+            holder.ivConflictIcon = convertView.findViewById(R.id.ivConflictIcon);
+            convertView.setTag(holder);
+        } else {
+            // Se a view já existe, apenas reutiliza o holder
+            holder = (ViewHolder) convertView.getTag();
         }
 
-        // Pega as referências para os componentes do nosso layout customizado
-        TextView tvAgendamentoInfo = convertView.findViewById(R.id.tvAgendamentoInfo);
-        ImageView ivConflictIcon = convertView.findViewById(R.id.ivConflictIcon);
+        // Pega o objeto Agendamento para esta posição
+        Agendamento agendamento = getItem(position);
 
-        // Se o agendamento não for nulo, preenche os dados na view
+        // Preenche os dados nos componentes da view
         if (agendamento != null) {
-            // Monta o texto a ser exibido
-            String info = agendamento.getHorarioInicio() + " - " + agendamento.getHorarioTermino() + " - " + agendamento.getNomePaciente();
-            tvAgendamentoInfo.setText(info);
+            holder.tvHorarioInicio.setText(agendamento.getHorarioInicio());
+            holder.tvHorarioTermino.setText(agendamento.getHorarioTermino());
+            holder.tvNomePaciente.setText(agendamento.getNomePaciente());
 
-            // --- AQUI ESTÁ A LÓGICA PRINCIPAL DO DESTAQUE VISUAL ---
+            // Lógica para o destaque visual de conflitos
             if (agendamento.isInConflict()) {
-                // Se o agendamento está em conflito:
-                // 1. Mostra o ícone de alerta
-                ivConflictIcon.setVisibility(View.VISIBLE);
-                // 2. Muda a cor de fundo da linha para um amarelo claro
-                convertView.setBackgroundColor(Color.parseColor("#FFFFE0")); // Light Yellow
+                holder.ivConflictIcon.setVisibility(View.VISIBLE);
+                convertView.setBackgroundColor(Color.parseColor("#FFFDE7")); // Amarelo Muito Claro
             } else {
-                // Se não está em conflito, garante que tudo volte ao normal
-                // 1. Esconde o ícone de alerta
-                ivConflictIcon.setVisibility(View.GONE);
-                // 2. Define a cor de fundo como transparente (padrão)
+                holder.ivConflictIcon.setVisibility(View.GONE);
                 convertView.setBackgroundColor(Color.TRANSPARENT);
             }
         }
 
-        // Retorna a view completa para ser desenhada na tela
         return convertView;
+    }
+
+    // Classe interna para armazenar as referências dos componentes, otimizando a performance
+    private static class ViewHolder {
+        TextView tvHorarioInicio;
+        TextView tvHorarioTermino;
+        TextView tvNomePaciente;
+        ImageView ivConflictIcon;
     }
 }
