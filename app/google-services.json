@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "733605045541",
+    "project_id": "mindflush-86131",
+    "storage_bucket": "mindflush-86131.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:733605045541:android:99ea1734d689ba6be7e6cc",
+        "android_client_info": {
+          "package_name": "com.example.mindflushagendamentos"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAlEcCO4KcJzjP-wguEM6leM_Pf0KJh8Yw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -21,10 +21,8 @@ public class AgendamentoAdapter extends ArrayAdapter<Agendamento> {
     @NonNull
     @Override
     public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
-        // ViewHolder é um padrão de otimização para listas
         ViewHolder holder;
 
-        // Se a view não existe, cria uma nova e configura o holder
         if (convertView == null) {
             convertView = LayoutInflater.from(getContext()).inflate(R.layout.list_item_agendamento, parent, false);
             holder = new ViewHolder();
@@ -34,23 +32,19 @@ public class AgendamentoAdapter extends ArrayAdapter<Agendamento> {
             holder.ivConflictIcon = convertView.findViewById(R.id.ivConflictIcon);
             convertView.setTag(holder);
         } else {
-            // Se a view já existe, apenas reutiliza o holder
             holder = (ViewHolder) convertView.getTag();
         }
 
-        // Pega o objeto Agendamento para esta posição
         Agendamento agendamento = getItem(position);
 
-        // Preenche os dados nos componentes da view
         if (agendamento != null) {
             holder.tvHorarioInicio.setText(agendamento.getHorarioInicio());
             holder.tvHorarioTermino.setText(agendamento.getHorarioTermino());
             holder.tvNomePaciente.setText(agendamento.getNomePaciente());
 
-            // Lógica para o destaque visual de conflitos
             if (agendamento.isInConflict()) {
                 holder.ivConflictIcon.setVisibility(View.VISIBLE);
-                convertView.setBackgroundColor(Color.parseColor("#FFFDE7")); // Amarelo Muito Claro
+                convertView.setBackgroundColor(Color.parseColor("#FFFDE7"));
             } else {
                 holder.ivConflictIcon.setVisibility(View.GONE);
                 convertView.setBackgroundColor(Color.TRANSPARENT);
@@ -60,7 +54,6 @@ public class AgendamentoAdapter extends ArrayAdapter<Agendamento> {
         return convertView;
     }
 
-    // Classe interna para armazenar as referências dos componentes, otimizando a performance
     private static class ViewHolder {
         TextView tvHorarioInicio;
         TextView tvHorarioTermino;

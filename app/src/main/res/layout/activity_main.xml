@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
@@ -8,7 +9,7 @@
     android:padding="16dp"
     tools:context=".MainActivity"
     android:fitsSystemWindows="true"
-    android:background="?attr/colorOnPrimary">
+    android:background="@color/colorBackground">
 
     <ImageView
         android:id="@+id/ivLogo"
@@ -24,13 +25,17 @@
         android:layout_height="wrap_content"
         android:text="Bem-vindo(a), Doutor(a)!"
         android:textSize="24sp"
+        android:textColor="@color/colorPrimaryVariant"
         android:textStyle="bold" />
 
     <Button
         android:id="@+id/btnVerAgenda"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="32dp"
+        android:backgroundTint="@color/colorPrimary"
+        android:textColor="@color/colorOnPrimary"
+        android:padding="12dp"
         android:text="Visualizar Agenda" />
 
 </LinearLayout>

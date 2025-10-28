@@ -1,16 +1,21 @@
 package com.example.mindflushagendamentos;
 
+import com.google.firebase.firestore.DocumentId;
+
 public class Agendamento {
 
-    private long id;
+    @DocumentId
+    private String documentId;
     private String nomePaciente;
     private String data;
     private String horarioInicio;
     private String horarioTermino;
     private boolean isInConflict;
 
-    public Agendamento(long id, String nomePaciente, String data, String horarioInicio, String horarioTermino, boolean isInConflict) {
-        this.id = id;
+    public Agendamento() {
+    }
+
+    public Agendamento(String nomePaciente, String data, String horarioInicio, String horarioTermino, boolean isInConflict) {
         this.nomePaciente = nomePaciente;
         this.data = data;
         this.horarioInicio = horarioInicio;
@@ -18,9 +23,8 @@ public class Agendamento {
         this.isInConflict = isInConflict;
     }
 
-    // Getters
-    public long getId() {
-        return id;
+    public String getDocumentId() {
+        return documentId;
     }
 
     public String getNomePaciente() {
@@ -43,9 +47,8 @@ public class Agendamento {
         return isInConflict;
     }
 
-    // Setters (não são estritamente necessários para esta fase, mas é uma boa prática tê-los)
-    public void setId(long id) {
-        this.id = id;
+    public void setDocumentId(String documentId) {
+        this.documentId = documentId;
     }
 
     public void setNomePaciente(String nomePaciente) {

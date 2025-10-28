@@ -1,48 +1,67 @@
 package com.example.mindflushagendamentos;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.LinearSnapHelper;
+import androidx.recyclerview.widget.RecyclerView;
+import androidx.recyclerview.widget.SnapHelper;
 
+import android.app.Activity;
 import android.content.Intent;
-import android.database.Cursor;
 import android.os.Bundle;
+import android.util.DisplayMetrics;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CalendarView;
 import android.widget.ImageButton;
 import android.widget.ListView;
+import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
 
-import java.text.SimpleDateFormat;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.stream.Collectors;
 
-public class CalendarActivity extends AppCompatActivity {
+public class CalendarActivity extends AppCompatActivity implements DayAdapter.OnItemListener {
 
-    private enum ViewMode {
-        MONTH, WEEK, DAY
-    }
+    private enum ViewMode { MONTH, WEEK, DAY }
     private ViewMode currentViewMode = ViewMode.MONTH;
 
-    // Componentes da UI
-    CalendarView calendarView;
-    ListView listViewHorarios;
-    FloatingActionButton btnAddAgendamento;
-    Button btnViewMes, btnViewSemana, btnViewDia;
-    RelativeLayout navigationControls;
-    ImageButton btnAnterior, btnProximo;
-    TextView tvDataNavegacao;
+    private CalendarView calendarView;
+    private ListView listViewHorarios;
+    private FloatingActionButton btnAddAgendamento;
+    private Button btnViewMes, btnViewSemana, btnViewDia;
+    private RelativeLayout navigationControls;
+    private ImageButton btnAnterior, btnProximo;
+    private TextView tvDataNavegacao;
+    private ProgressBar progressBar;
+    private RecyclerView rvDays;
+    private DayAdapter dayAdapter;
 
-    // Variáveis de dados
-    BancoHelper bancoHelper;
-    Date objetoDataSelecionada;
+    private AgendamentoRepository agendamentoRepository;
+    private LocalDate selectedDate;
+
+    private ActivityResultLauncher<Intent> agendamentoActivityResultLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,7 +74,7 @@ public class CalendarActivity extends AppCompatActivity {
             getSupportActionBar().setDisplayShowTitleEnabled(false);
         }
 
-        bancoHelper = new BancoHelper(this);
+        agendamentoRepository = new AgendamentoRepository();
         calendarView = findViewById(R.id.calendarView);
         listViewHorarios = findViewById(R.id.listViewHorarios);
         btnAddAgendamento = findViewById(R.id.btnAddAgendamento);
@@ -66,34 +85,53 @@ public class CalendarActivity extends AppCompatActivity {
         btnAnterior = findViewById(R.id.btnAnterior);
         btnProximo = findViewById(R.id.btnProximo);
         tvDataNavegacao = findViewById(R.id.tvDataNavegacao);
+        progressBar = findViewById(R.id.progressBarCalendar);
+        rvDays = findViewById(R.id.rvDays);
 
-        objetoDataSelecionada = new Date();
-        calendarView.setDate(objetoDataSelecionada.getTime());
+        SnapHelper snapHelper = new LinearSnapHelper();
+        snapHelper.attachToRecyclerView(rvDays);
+
+        agendamentoActivityResultLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == Activity.RESULT_OK) {
+                        atualizarDadosDaView();
+                    }
+                });
+
+        selectedDate = LocalDate.now();
+        calendarView.setDate(selectedDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli());
 
         configurarListeners();
         atualizarVisibilidadeEControles();
     }
 
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.calendar_menu, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == R.id.action_today) {
+            selectedDate = LocalDate.now();
+            calendarView.setDate(selectedDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(), true, true);
+            atualizarDadosDaView();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
     private void configurarListeners() {
         calendarView.setOnDateChangeListener((view, year, month, dayOfMonth) -> {
-            Calendar cal = Calendar.getInstance();
-            cal.set(year, month, dayOfMonth);
-            objetoDataSelecionada = cal.getTime();
-            carregarAgendamentosDoDia(new SimpleDateFormat("d/M/yyyy", Locale.getDefault()).format(objetoDataSelecionada));
+            selectedDate = LocalDate.of(year, month + 1, dayOfMonth);
+            atualizarDadosDaView();
         });
 
-        btnViewMes.setOnClickListener(v -> {
-            currentViewMode = ViewMode.MONTH;
-            atualizarVisibilidadeEControles();
-        });
-        btnViewDia.setOnClickListener(v -> {
-            currentViewMode = ViewMode.DAY;
-            atualizarVisibilidadeEControles();
-        });
-        btnViewSemana.setOnClickListener(v -> {
-            currentViewMode = ViewMode.WEEK;
-            atualizarVisibilidadeEControles();
-        });
+        btnViewMes.setOnClickListener(v -> { currentViewMode = ViewMode.MONTH; atualizarVisibilidadeEControles(); });
+        btnViewDia.setOnClickListener(v -> { currentViewMode = ViewMode.DAY; atualizarVisibilidadeEControles(); });
+        btnViewSemana.setOnClickListener(v -> { currentViewMode = ViewMode.WEEK; atualizarVisibilidadeEControles(); });
 
         btnAnterior.setOnClickListener(v -> navegarData(-1));
         btnProximo.setOnClickListener(v -> navegarData(1));
@@ -102,176 +140,270 @@ public class CalendarActivity extends AppCompatActivity {
 
         listViewHorarios.setOnItemClickListener((parent, view, position, id) -> {
             Object item = parent.getItemAtPosition(position);
+            Agendamento agendamento = null;
             if (item instanceof Agendamento) {
-                Agendamento agendamentoClicado = (Agendamento) item;
-                mostrarPopupOpcoes(agendamentoClicado.getId());
+                agendamento = (Agendamento) item;
+            } else if (item instanceof AgendamentoItem) {
+                agendamento = ((AgendamentoItem) item).getAgendamento();
+            }
+            if (agendamento != null) {
+                mostrarPopupOpcoes(agendamento);
             }
         });
     }
-
+    
     private void navegarData(int direcao) {
-        Calendar cal = Calendar.getInstance();
-        cal.setTime(objetoDataSelecionada);
         if (currentViewMode == ViewMode.DAY) {
-            cal.add(Calendar.DAY_OF_YEAR, direcao);
+            selectedDate = selectedDate.plusDays(direcao);
         } else if (currentViewMode == ViewMode.WEEK) {
-            cal.add(Calendar.WEEK_OF_YEAR, direcao);
+            selectedDate = selectedDate.plusWeeks(direcao);
         }
-        objetoDataSelecionada = cal.getTime();
-        calendarView.setDate(objetoDataSelecionada.getTime(), true, true);
-        atualizarVisibilidadeEControles();
+        calendarView.setDate(selectedDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(), true, true);
+        atualizarDadosDaView();
     }
 
     private void atualizarVisibilidadeEControles() {
+        btnViewMes.setSelected(currentViewMode == ViewMode.MONTH);
+        btnViewSemana.setSelected(currentViewMode == ViewMode.WEEK);
+        btnViewDia.setSelected(currentViewMode == ViewMode.DAY);
+
         RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams) listViewHorarios.getLayoutParams();
-        if (currentViewMode == ViewMode.MONTH) {
-            navigationControls.setVisibility(View.GONE);
-            calendarView.setVisibility(View.VISIBLE);
-            params.addRule(RelativeLayout.BELOW, R.id.calendarView);
-            carregarAgendamentosDoDia(new SimpleDateFormat("d/M/yyyy", Locale.getDefault()).format(objetoDataSelecionada));
-        } else {
-            navigationControls.setVisibility(View.VISIBLE);
-            calendarView.setVisibility(View.GONE);
-            params.addRule(RelativeLayout.BELOW, R.id.navigation_controls);
-            if (currentViewMode == ViewMode.DAY) {
-                carregarAgendamentosDoDia(new SimpleDateFormat("d/M/yyyy", Locale.getDefault()).format(objetoDataSelecionada));
-            } else { // WEEK
-                carregarAgendamentosDaSemana(objetoDataSelecionada);
-            }
+        
+        switch (currentViewMode) {
+            case MONTH:
+                navigationControls.setVisibility(View.GONE);
+                calendarView.setVisibility(View.VISIBLE);
+                rvDays.setVisibility(View.GONE);
+                params.addRule(RelativeLayout.BELOW, R.id.calendarView);
+                atualizarDadosDaView();
+                break;
+            case DAY:
+                navigationControls.setVisibility(View.VISIBLE);
+                calendarView.setVisibility(View.GONE);
+                rvDays.setVisibility(View.VISIBLE);
+                params.addRule(RelativeLayout.BELOW, R.id.rvDays);
+                setupDayViewSlidingWindow();
+                break;
+            case WEEK:
+                navigationControls.setVisibility(View.VISIBLE);
+                calendarView.setVisibility(View.GONE);
+                rvDays.setVisibility(View.GONE);
+                params.addRule(RelativeLayout.BELOW, R.id.navigation_controls);
+                atualizarDadosDaView();
+                break;
         }
         listViewHorarios.setLayoutParams(params);
     }
+    
+    private void atualizarDadosDaView() {
+        if (currentViewMode == ViewMode.MONTH) {
+            carregarAgendamentos(selectedDate);
+        } else if (currentViewMode == ViewMode.DAY) {
+            setupDayViewSlidingWindow();
+        } else if (currentViewMode == ViewMode.WEEK) {
+            LocalDate startOfWeek = selectedDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+            LocalDate endOfWeek = selectedDate.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
+            DateTimeFormatter rangeFormatter = DateTimeFormatter.ofPattern("dd/MM");
+            String rangeText = startOfWeek.format(rangeFormatter) + " - " + endOfWeek.format(rangeFormatter);
+            tvDataNavegacao.setText(rangeText);
+            carregarAgendamentosDaSemana(startOfWeek, endOfWeek);
+        }
+    }
 
-    private void carregarAgendamentosDaSemana(Date dataBase) {
-        SimpleDateFormat sdfNav = new SimpleDateFormat("dd/MM", Locale.getDefault());
-        Calendar cal = Calendar.getInstance();
-        cal.setTime(dataBase);
-        cal.set(Calendar.DAY_OF_WEEK, cal.getFirstDayOfWeek());
-        String inicioSemana = sdfNav.format(cal.getTime());
-        cal.add(Calendar.DAY_OF_YEAR, 6);
-        String fimSemana = sdfNav.format(cal.getTime());
-        tvDataNavegacao.setText(inicioSemana + " - " + fimSemana);
+    private void setupDayViewSlidingWindow() {
+        DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
+        int screenWidth = displayMetrics.widthPixels;
+        int itemWidth = (int) (56 * displayMetrics.density);
+        int padding = (screenWidth / 2) - (itemWidth / 2);
+        rvDays.setPadding(padding, 0, padding, 0);
 
-        ArrayList<Object> itensDaLista = new ArrayList<>();
-        cal.setTime(dataBase);
-        cal.set(Calendar.DAY_OF_WEEK, cal.getFirstDayOfWeek());
-        SimpleDateFormat sdfQuery = new SimpleDateFormat("d/M/yyyy", Locale.getDefault());
-        SimpleDateFormat sdfHeader = new SimpleDateFormat("EEEE, dd 'de' MMMM", Locale.getDefault());
+        ArrayList<LocalDate> days = new ArrayList<>();
+        for (int i = -10; i <= 10; i++) { 
+            days.add(selectedDate.plusDays(i));
+        }
 
-        int totalAgendamentosSemana = 0;
-        for (int i = 0; i < 7; i++) {
-            String dataAtual = sdfQuery.format(cal.getTime());
-            Cursor cursor = bancoHelper.listarAgendamentosPorData(dataAtual);
-            if (cursor != null && cursor.getCount() > 0) {
-                itensDaLista.add(sdfHeader.format(cal.getTime()).toUpperCase());
-                cursor.moveToFirst();
-                do {
-                    long id = cursor.getLong(0);
-                    String nome = cursor.getString(1);
-                    String data = cursor.getString(2);
-                    String inicio = cursor.getString(3);
-                    String termino = cursor.getString(4);
-                    boolean isInConflict = cursor.getInt(5) == 1;
-                    itensDaLista.add(new Agendamento(id, nome, data, inicio, termino, isInConflict));
-                    totalAgendamentosSemana++;
-                } while (cursor.moveToNext());
-                cursor.close();
+        dayAdapter = new DayAdapter(days, this);
+        rvDays.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        rvDays.setAdapter(dayAdapter);
+        
+        int selectedPos = days.indexOf(selectedDate);
+        if(selectedPos != -1) {
+            ((LinearLayoutManager) rvDays.getLayoutManager()).scrollToPositionWithOffset(selectedPos, 0);
+            updateDaySpecificUI(selectedDate, selectedPos);
+        }
+    }
+
+    @Override
+    public void onItemClick(int position, LocalDate date) {
+        if (currentViewMode == ViewMode.DAY) {
+            if (!date.equals(selectedDate)) {
+                selectedDate = date;
+                setupDayViewSlidingWindow();
             }
-            cal.add(Calendar.DAY_OF_YEAR, 1);
-        }
-
-        SemanaAdapter semanaAdapter = new SemanaAdapter(this, itensDaLista);
-        listViewHorarios.setAdapter(semanaAdapter);
-
-        if (totalAgendamentosSemana == 0) {
-            Toast.makeText(this, "Nenhum agendamento para esta semana.", Toast.LENGTH_SHORT).show();
         }
     }
-
-    private void carregarAgendamentosDoDia(String data) {
-        SimpleDateFormat sdfNav = new SimpleDateFormat("EEEE, dd 'de' MMMM", Locale.getDefault());
-        tvDataNavegacao.setText(sdfNav.format(objetoDataSelecionada));
-
-        ArrayList<Agendamento> listaAgendamentos = new ArrayList<>();
-        Cursor cursor = bancoHelper.listarAgendamentosPorData(data);
-
-        if (cursor != null && cursor.moveToFirst()) {
-            do {
-                long id = cursor.getLong(0);
-                String nome = cursor.getString(1);
-                String inicio = cursor.getString(3);
-                String termino = cursor.getString(4);
-                boolean isInConflict = cursor.getInt(5) == 1;
-                listaAgendamentos.add(new Agendamento(id, nome, data, inicio, termino, isInConflict));
-            } while (cursor.moveToNext());
-            cursor.close();
-        }
-
-        AgendamentoAdapter agendamentoAdapter = new AgendamentoAdapter(this, listaAgendamentos);
-        listViewHorarios.setAdapter(agendamentoAdapter);
-
-        if (listaAgendamentos.isEmpty()) {
-            Toast.makeText(this, "Nenhum agendamento para este dia.", Toast.LENGTH_SHORT).show();
-        }
+    
+    private void updateDaySpecificUI(LocalDate date, int position) {
+        dayAdapter.setSelectedPosition(position);
+        DateTimeFormatter navFormatter = DateTimeFormatter.ofPattern("EEEE, dd 'de' MMMM", new Locale("pt", "BR"));
+        tvDataNavegacao.setText(date.format(navFormatter));
+        carregarAgendamentos(date);
     }
 
+    private void carregarAgendamentos(LocalDate date) {
+        setLoading(true);
+        DateTimeFormatter firestoreFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.getDefault());
+        String dataFormatada = date.format(firestoreFormatter);
+
+        agendamentoRepository.getAgendamentosPorData(dataFormatada)
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+                    ArrayList<Agendamento> listaAgendamentos = new ArrayList<>();
+                    if (queryDocumentSnapshots != null) {
+                        for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
+                            listaAgendamentos.add(document.toObject(Agendamento.class));
+                        }
+                    }
+                    listViewHorarios.setAdapter(new AgendamentoAdapter(this, listaAgendamentos));
+                    setLoading(false);
+                })
+                .addOnFailureListener(e -> {
+                    setLoading(false);
+                    Toast.makeText(this, "Erro ao carregar agendamentos: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+    }
+
+    private void carregarAgendamentosDaSemana(LocalDate start, LocalDate end) {
+        setLoading(true);
+        agendamentoRepository.getAgendamentosEntreDatas(start, end)
+            .addOnSuccessListener(queryDocumentSnapshots -> {
+                Map<LocalDate, List<Agendamento>> agendamentosPorDia = new LinkedHashMap<>();
+                if (queryDocumentSnapshots != null) {
+                    for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
+                        Agendamento ag = document.toObject(Agendamento.class);
+                        try {
+                            LocalDate data = LocalDate.parse(ag.getData(), DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+                            if (!agendamentosPorDia.containsKey(data)) {
+                                agendamentosPorDia.put(data, new ArrayList<>());
+                            }
+                            agendamentosPorDia.get(data).add(ag);
+                        } catch (Exception e) { /* Ignora */ }
+                    }
+                }
+
+                ArrayList<ListItem> items = new ArrayList<>();
+                DateTimeFormatter headerFormatter = DateTimeFormatter.ofPattern("EEEE, dd/MM", new Locale("pt", "BR"));
+                
+                List<LocalDate> diasOrdenados = new ArrayList<>(agendamentosPorDia.keySet());
+                diasOrdenados.sort(Comparator.naturalOrder());
+
+                for (LocalDate dia : diasOrdenados) {
+                    String headerText = dia.format(headerFormatter);
+                    headerText = headerText.substring(0, 1).toUpperCase() + headerText.substring(1);
+                    items.add(new HeaderItem(headerText));
+                    
+                    List<Agendamento> ags = agendamentosPorDia.get(dia);
+                    ags.sort(Comparator.comparing(Agendamento::getHorarioInicio));
+                    for (Agendamento ag : ags) {
+                        items.add(new AgendamentoItem(ag));
+                    }
+                }
+                listViewHorarios.setAdapter(new WeeklyAgendamentoAdapter(this, items));
+                setLoading(false);
+            })
+            .addOnFailureListener(e -> {
+                setLoading(false);
+                Toast.makeText(this, "Erro ao carregar agendamentos da semana: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            });
+    }
+    
     private void abrirTelaDeAdicionar() {
         Intent intent = new Intent(this, AddAgendamentoActivity.class);
-        intent.putExtra("DATA_SELECIONADA", new SimpleDateFormat("d/M/yyyy", Locale.getDefault()).format(objetoDataSelecionada));
-        startActivity(intent);
+        String dataFormatada = selectedDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.getDefault()));
+        intent.putExtra("DATA_SELECIONADA", dataFormatada);
+        agendamentoActivityResultLauncher.launch(intent);
+    }
+    
+    private void abrirTelaDeEditar(Agendamento agendamento) {
+        Intent intent = new Intent(this, EditAgendamentoActivity.class);
+        intent.putExtra("AGENDAMENTO_DOC_ID", agendamento.getDocumentId());
+        agendamentoActivityResultLauncher.launch(intent);
     }
 
-    private void mostrarPopupOpcoes(long idDoAgendamento) {
+    private void mostrarPopupOpcoes(Agendamento agendamento) {
         new AlertDialog.Builder(this)
                 .setTitle("O que deseja fazer?")
-                .setPositiveButton("Editar", (dialog, which) -> {
-                    Intent intent = new Intent(CalendarActivity.this, EditAgendamentoActivity.class);
-                    intent.putExtra("AGENDAMENTO_ID", idDoAgendamento);
-                    startActivity(intent);
-                })
-                .setNegativeButton("Excluir", (dialog, which) -> {
-                    mostrarPopupConfirmacaoExclusao(idDoAgendamento);
-                })
+                .setPositiveButton("Editar", (dialog, which) -> abrirTelaDeEditar(agendamento))
+                .setNegativeButton("Excluir", (dialog, which) -> mostrarPopupConfirmacaoExclusao(agendamento))
                 .setNeutralButton("Cancelar", null)
                 .show();
     }
 
-    private void mostrarPopupConfirmacaoExclusao(long idParaExcluir) {
-        Cursor cursor = bancoHelper.getAgendamentoPorId(idParaExcluir);
-        if (cursor == null || !cursor.moveToFirst()) {
-            Toast.makeText(this, "Agendamento não encontrado.", Toast.LENGTH_SHORT).show();
-            if (cursor != null) cursor.close();
-            return;
-        }
-
-        String nome = cursor.getString(1);
-        String data = cursor.getString(2);
-        String inicio = cursor.getString(3);
-        String termino = cursor.getString(4);
-        cursor.close();
-
-        String detalhes = "Paciente: " + nome + "\nData: " + data + "\nHorário: " + inicio + " - " + termino;
-
+    private void mostrarPopupConfirmacaoExclusao(Agendamento agendamento) {
+        String detalhes = "Paciente: " + agendamento.getNomePaciente() + "\nData: " + agendamento.getData() + "\nHorário: " + agendamento.getHorarioInicio() + " - " + agendamento.getHorarioTermino();
         new AlertDialog.Builder(this)
                 .setTitle("Confirmar Exclusão?")
-                .setMessage("Tem certeza de que deseja excluir o seguinte agendamento?\n\n" + detalhes)
-                .setPositiveButton("Sim, Excluir", (dialog, which) -> {
-                    int resultado = bancoHelper.excluirAgendamento(idParaExcluir);
-                    if (resultado > 0) {
-                        bancoHelper.reavaliarConflitosDoDia(data);
-                        Toast.makeText(this, "Agendamento excluído!", Toast.LENGTH_SHORT).show();
-                        atualizarVisibilidadeEControles();
-                    } else {
-                        Toast.makeText(this, "Erro ao excluir!", Toast.LENGTH_SHORT).show();
-                    }
-                })
+                .setMessage("Deseja realmente excluir este agendamento?\n\n" + detalhes)
+                .setPositiveButton("Sim, Excluir", (dialog, which) -> excluirAgendamentoEVerificarConflitos(agendamento))
                 .setNegativeButton("Não", null)
                 .show();
     }
 
+    private void excluirAgendamentoEVerificarConflitos(final Agendamento agendamentoParaExcluir) {
+        setLoading(true);
+        if (!agendamentoParaExcluir.isInConflict()) {
+            agendamentoRepository.excluirAgendamento(agendamentoParaExcluir.getDocumentId())
+                .addOnSuccessListener(aVoid -> {
+                    Toast.makeText(this, "Agendamento excluído!", Toast.LENGTH_SHORT).show();
+                    atualizarDadosDaView();
+                })
+                .addOnFailureListener(e -> { setLoading(false); Toast.makeText(this, "Erro ao excluir: " + e.getMessage(), Toast.LENGTH_SHORT).show(); });
+            return;
+        }
+
+        agendamentoRepository.getAgendamentosPorData(agendamentoParaExcluir.getData())
+            .addOnSuccessListener(queryDocumentSnapshots -> {
+                List<Agendamento> todosAgendamentosDoDia = new ArrayList<>();
+                for (QueryDocumentSnapshot document : queryDocumentSnapshots) { todosAgendamentosDoDia.add(document.toObject(Agendamento.class)); }
+
+                List<Agendamento> agendamentosParaAtualizar = new ArrayList<>();
+                List<Agendamento> conflitosOriginais = todosAgendamentosDoDia.stream()
+                    .filter(ag -> !ag.getDocumentId().equals(agendamentoParaExcluir.getDocumentId()) && ag.isInConflict() && isSobreposto(ag, agendamentoParaExcluir))
+                    .collect(Collectors.toList());
+
+                for (Agendamento orfao : conflitosOriginais) {
+                    boolean aindaTemConflito = todosAgendamentosDoDia.stream()
+                        .anyMatch(outroAg -> !outroAg.getDocumentId().equals(agendamentoParaExcluir.getDocumentId()) && !outroAg.getDocumentId().equals(orfao.getDocumentId()) && isSobreposto(orfao, outroAg));
+                    
+                    if (!aindaTemConflito) {
+                        orfao.setInConflict(false);
+                        agendamentosParaAtualizar.add(orfao);
+                    }
+                }
+                agendamentoRepository.resolverConflitosAposExclusao(agendamentoParaExcluir, agendamentosParaAtualizar)
+                    .addOnSuccessListener(aVoid -> {
+                        Toast.makeText(this, "Agendamento excluído e conflitos resolvidos.", Toast.LENGTH_SHORT).show();
+                        atualizarDadosDaView();
+                    })
+                    .addOnFailureListener(e -> { setLoading(false); Toast.makeText(this, "Erro na operação em lote: " + e.getMessage(), Toast.LENGTH_SHORT).show(); });
+            })
+            .addOnFailureListener(e -> { setLoading(false); Toast.makeText(this, "Erro ao buscar agendamentos: " + e.getMessage(), Toast.LENGTH_SHORT).show(); });
+    }
+
+    private boolean isSobreposto(Agendamento ag1, Agendamento ag2) {
+        return ag1.getHorarioInicio().compareTo(ag2.getHorarioTermino()) < 0 &&
+               ag1.getHorarioTermino().compareTo(ag2.getHorarioInicio()) > 0;
+    }
+    
+    private void setLoading(boolean loading) {
+        if (progressBar != null) {
+            listViewHorarios.setVisibility(loading ? View.GONE : View.VISIBLE);
+            progressBar.setVisibility(loading ? View.VISIBLE : View.GONE);
+        }
+    }
+    
     @Override
     protected void onResume() {
         super.onResume();
-        atualizarVisibilidadeEControles();
+        atualizarDadosDaView();
     }
 }

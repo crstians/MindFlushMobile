@@ -1,64 +1,88 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="16dp">
+    android:layout_margin="8dp"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="4dp">
 
-    <LinearLayout
-        android:id="@+id/time_container"
-        android:layout_width="wrap_content"
+    <RelativeLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_alignParentStart="true"
-        android:layout_centerVertical="true"
-        android:orientation="vertical"
-        android:gravity="center_horizontal">
+        android:padding="16dp">
 
-        <TextView
-            android:id="@+id/tvHorarioInicio"
+        <LinearLayout
+            android:id="@+id/time_container"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="10:00"
-            android:textSize="16sp"
-            android:textColor="@color/colorPrimary"
-            android:textStyle="bold" />
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:orientation="vertical"
+            android:gravity="center_horizontal">
 
-        <TextView
-            android:id="@+id/tvHorarioTermino"
+            <TextView
+                android:id="@+id/tvHorarioInicio"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="10:00"
+                android:textSize="16sp"
+                android:textColor="@color/colorPrimary"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvHorarioTermino"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="11:00"
+                android:textSize="12sp"
+                android:textColor="@color/colorPrimaryVariant" />
+        </LinearLayout>
+
+        <View
+            android:id="@+id/divider"
+            android:layout_width="1dp"
+            android:layout_height="40dp"
+            android:layout_toEndOf="@id/time_container"
+            android:layout_centerVertical="true"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
+            android:background="@color/colorPrimary" />
+
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="11:00"
-            android:textSize="12sp"
-            android:textColor="@android:color/darker_gray" />
-    </LinearLayout>
+            android:layout_toEndOf="@id/divider"
+            android:layout_centerVertical="true"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
-    <View
-        android:id="@+id/divider"
-        android:layout_width="1dp"
-        android:layout_height="40dp"
-        android:layout_toEndOf="@id/time_container"
-        android:layout_centerVertical="true"
-        android:layout_marginStart="16dp"
-        android:layout_marginEnd="16dp"
-        android:background="@android:color/darker_gray" />
+            <ImageView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_person"
+                android:layout_marginEnd="8dp"
+                app:tint="@color/colorPrimary" />
 
-    <TextView
-        android:id="@+id/tvNomePaciente"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_toEndOf="@id/divider"
-        android:layout_centerVertical="true"
-        android:text="Nome do Paciente"
-        android:textSize="18sp"
-        android:textColor="@android:color/black" />
+            <TextView
+                android:id="@+id/tvNomePaciente"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Nome do Paciente"
+                android:textSize="18sp"
+                android:textColor="@color/colorPrimaryVariant" />
+        </LinearLayout>
 
-    <ImageView
-        android:id="@+id/ivConflictIcon"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentEnd="true"
-        android:layout_centerVertical="true"
-        android:src="@android:drawable/ic_dialog_alert"
-        android:visibility="gone"
-        android:contentDescription="Ícone de Conflito" />
+        <ImageView
+            android:id="@+id/ivConflictIcon"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:src="@drawable/ic_alert"
+            android:visibility="gone"
+            app:tint="@color/colorError"
+            android:contentDescription="Ícone de Conflito" />
 
-</RelativeLayout>
+    </RelativeLayout>
+</androidx.cardview.widget.CardView>
