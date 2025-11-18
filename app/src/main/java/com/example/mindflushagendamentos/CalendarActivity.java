@@ -26,7 +26,10 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.gms.auth.api.signin.GoogleSignIn;
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 import java.time.DayOfWeek;
@@ -60,6 +63,8 @@ public class CalendarActivity extends AppCompatActivity implements DayAdapter.On
 
     private AgendamentoRepository agendamentoRepository;
     private LocalDate selectedDate;
+    private FirebaseAuth mAuth;
+
 
     private ActivityResultLauncher<Intent> agendamentoActivityResultLauncher;
 
@@ -73,6 +78,8 @@ public class CalendarActivity extends AppCompatActivity implements DayAdapter.On
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayShowTitleEnabled(false);
         }
+        
+        mAuth = FirebaseAuth.getInstance();
 
         agendamentoRepository = new AgendamentoRepository();
         calendarView = findViewById(R.id.calendarView);
@@ -114,13 +121,33 @@ public class CalendarActivity extends AppCompatActivity implements DayAdapter.On
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == R.id.action_today) {
+        int id = item.getItemId();
+        if (id == R.id.action_today) {
             selectedDate = LocalDate.now();
             calendarView.setDate(selectedDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(), true, true);
             atualizarDadosDaView();
             return true;
+        } else if (id == R.id.action_logout) {
+            logout();
+            return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+    
+    private void logout() {
+        mAuth.signOut();
+        
+        // Sign out from Google
+        GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestIdToken(getString(R.string.default_web_client_id))
+                .requestEmail()
+                .build();
+        GoogleSignIn.getClient(this, gso).signOut().addOnCompleteListener(task -> {
+            Intent intent = new Intent(CalendarActivity.this, LoginActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            startActivity(intent);
+            finish();
+        });
     }
 
     private void configurarListeners() {
@@ -196,6 +223,15 @@ public class CalendarActivity extends AppCompatActivity implements DayAdapter.On
     }
     
     private void atualizarDadosDaView() {
+        if (mAuth.getCurrentUser() == null) {
+            // Se o usuário for nulo, não tente carregar dados. Pode redirecionar para login.
+            Intent intent = new Intent(CalendarActivity.this, LoginActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            startActivity(intent);
+            finish();
+            return;
+        }
+
         if (currentViewMode == ViewMode.MONTH) {
             carregarAgendamentos(selectedDate);
         } else if (currentViewMode == ViewMode.DAY) {

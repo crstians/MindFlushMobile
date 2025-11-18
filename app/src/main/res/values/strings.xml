@@ -1,3 +1,13 @@
 <resources>
     <string name="app_name">MindFlushAgendamentos</string>
+    <string name="default_web_client_id" translatable="false">733605045541-joq33v4vkc0so5rt4p1sq6v48234mfmo.apps.googleusercontent.com</string>
+
+    <!-- Calendar Menu -->
+    <string name="menu_today">Hoje</string>
+    <string name="menu_logout">Sair</string>
+
+    <!-- Login Screen -->
+    <string name="login_title">MindFlush Agendamentos</string>
+    <string name="logo_content_description">Logo do aplicativo</string>
+
 </resources>

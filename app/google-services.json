@@ -12,7 +12,20 @@
           "package_name": "com.example.mindflushagendamentos"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "733605045541-i24qqivf288fc075f517pcp1kgodkoud.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.mindflushagendamentos",
+            "certificate_hash": "1d25767c61a36dc8404b34bc4134561bc4f8ce5a"
+          }
+        },
+        {
+          "client_id": "733605045541-joq33v4vkc0so5rt4p1sq6v48234mfmo.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAlEcCO4KcJzjP-wguEM6leM_Pf0KJh8Yw"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "733605045541-joq33v4vkc0so5rt4p1sq6v48234mfmo.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

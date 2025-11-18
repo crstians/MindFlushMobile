@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.mindflushagendamentos"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -45,5 +45,9 @@ dependencies {
     // Firebase
     implementation(platform("com.google.firebase:firebase-bom:34.4.0"))
     implementation("com.google.firebase:firebase-analytics")
-    implementation("com.google.firebase:firebase-firestore") // <-- Adicionei esta linha
+    implementation("com.google.firebase:firebase-firestore")
+
+    // Firebase Auth and Google Sign-In
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
 }
