@@ -2,7 +2,7 @@ package com.example.mindflushagendamentos;
 
 import com.google.firebase.firestore.DocumentId;
 
-@SuppressWarnings("unused") // Suprime avisos de código não utilizado, pois os setters são usados pelo Firestore
+@SuppressWarnings("unused")
 public class Agendamento {
 
     @DocumentId
@@ -15,20 +15,17 @@ public class Agendamento {
     private String userId;
 
     public Agendamento() {
-        // Construtor vazio necessário para o Firestore
+
     }
 
-    // Construtor usado pelas Activities, sem o userId
     public Agendamento(String nomePaciente, String data, String horarioInicio, String horarioTermino, boolean isInConflict) {
         this.nomePaciente = nomePaciente;
         this.data = data;
         this.horarioInicio = horarioInicio;
         this.horarioTermino = horarioTermino;
         this.isInConflict = isInConflict;
-        // userId será preenchido pelo repositório antes de salvar
     }
-    
-    // Construtor completo (pode ser útil em outros contextos)
+
     public Agendamento(String nomePaciente, String data, String horarioInicio, String horarioTermino, boolean isInConflict, String userId) {
         this.nomePaciente = nomePaciente;
         this.data = data;
@@ -38,7 +35,6 @@ public class Agendamento {
         this.userId = userId;
     }
 
-    // Getters
     public String getDocumentId() {
         return documentId;
     }
@@ -67,7 +63,6 @@ public class Agendamento {
         return userId;
     }
 
-    // Setters
     public void setDocumentId(String documentId) {
         this.documentId = documentId;
     }

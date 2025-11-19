@@ -136,8 +136,7 @@ public class CalendarActivity extends AppCompatActivity implements DayAdapter.On
     
     private void logout() {
         mAuth.signOut();
-        
-        // Sign out from Google
+
         GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                 .requestIdToken(getString(R.string.default_web_client_id))
                 .requestEmail()
@@ -224,7 +223,6 @@ public class CalendarActivity extends AppCompatActivity implements DayAdapter.On
     
     private void atualizarDadosDaView() {
         if (mAuth.getCurrentUser() == null) {
-            // Se o usuário for nulo, não tente carregar dados. Pode redirecionar para login.
             Intent intent = new Intent(CalendarActivity.this, LoginActivity.class);
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             startActivity(intent);
